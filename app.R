@@ -59,16 +59,25 @@ loadData <- function() {
         sheet_id=drive_find(pattern = "mentors", type = "spreadsheet")$id
         data=read_sheet(sheet_id)
         # data
-        out = tibble(
+        names = tibble(
                 name=mapply(
-                        function(url,text){paste0("<a href='",url,"'>",text,"</a>")}, 
-                        data$linkedin, data$name
-                        ),
-                email=sapply(data$email,function(email){paste0("<a href='mailto:",email,"'>","email","</a>")})
-                )
+                        function(url,text){paste0("<a href=mailto:",url,">",text,"</a>")}, 
+                        data$email, data$name
+                        )
+        )
+        links = tibble(
+                links=sapply(data$linkedin,function(url){
+                        ifelse(
+                                url!=" ",
+                                paste0("<a href='",url,"'>","linkedIn","</a>"),
+                                "linkedIn"
+                        )
+                })
+        )
         out = bind_cols(
-                out %>% as.data.frame(),
-                data[,c("pronoun","signUp.type","expertises","primary.employment","preferred.mentor.method")]
+                names %>% as.data.frame(),
+                data[,c("pronoun","signUp.type","expertises","primary.employment","preferred.mentor.method")],
+                links %>% as.data.frame()
         )
         out
 }
@@ -163,13 +172,13 @@ ui <- navbarPage(
                 ),
                 fluidRow(
                         column(12,
-                               linkedin_wig,
+                               email_wig,
                                offset=3
                         )
                 ),
                 fluidRow(
                         column(12,
-                               email_wig,
+                               linkedin_wig,
                                offset=3
                         )
                 ),
@@ -274,12 +283,12 @@ server <- function(input, output, session) {
                         )
                 )
                 removeNotification("name_error", session = getDefaultReactiveDomain())
-                validate(
-                        need(grepl("linkedin\\.com",input$linkedin_wig), 
-                                showNotification("Please add a valid linkedin url", duration = 0, type = "error", id="linkedin_error")
-                        )
-                )
-                removeNotification("linkedin_error", session = getDefaultReactiveDomain())
+                # validate(
+                #         need(grepl("linkedin\\.com",input$linkedin_wig), 
+                #                 showNotification("Please add a valid linkedin url", duration = 0, type = "error", id="linkedin_error")
+                #         )
+                # )
+                # removeNotification("linkedin_error", session = getDefaultReactiveDomain())
                 validate(
                         need(grepl("\\@",input$email_wig), 
                              showNotification("Please add a valid email", duration = 0, type = "error", id="email_error")
@@ -297,6 +306,7 @@ server <- function(input, output, session) {
                 showNotification(response, duration = 0, type = "message")
                 saveData(input)
                 resetForm(session)
+                # updateNavbarPage(session, "tab", selected = NULL)
         })
         # clear the fields
         observeEvent(input$clear, {
@@ -309,9 +319,16 @@ server <- function(input, output, session) {
         #         loadData()
         # },escape = FALSE)
         # 
+        
+        
+        
         # #### search tab
         df = loadData()
         v <- reactiveValues(data = df)
+        # observeEvent(input$submit, {
+        #         updateNavbarPage(session, "tab", selected = NULL)
+        # })
+        
         
         observeEvent(input$search_submit, {
                 search_type_bl = unlist(lapply(df$signUp.type, function(x){any(strsplit(x,", ")[[1]] %in% input$search_type)}))
@@ -328,6 +345,8 @@ server <- function(input, output, session) {
                 input$submit
                 v$data
         },escape = FALSE)
+        
+        # updateNavbarPage(session, "tab", selected = NULL)
         
 }
 
